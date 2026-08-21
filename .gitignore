@@ -27,3 +27,6 @@ Thumbs.db
 
 # Logs
 *.log
+# Large real GNSS datasets
+data/real_gnss/google/sample/device_gnss.csv
+data/real_gnss/google/sample/normalized_gnss.csv
