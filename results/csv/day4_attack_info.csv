@@ -1,0 +1,4 @@
+attack_type,satellite_id,start_s,duration_s
+step,IRNSS-1C,34465.63624,7200.0
+drift,IRNSS-1D,48865.63624,7200.0
+evasive,IRNSS-1E,63265.63624,
