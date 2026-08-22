@@ -30,3 +30,6 @@ Thumbs.db
 # Large real GNSS datasets
 data/real_gnss/google/sample/device_gnss.csv
 data/real_gnss/google/sample/normalized_gnss.csv
+
+# Local real-GNSS research figures
+results/figures/real_gnss_*.png
