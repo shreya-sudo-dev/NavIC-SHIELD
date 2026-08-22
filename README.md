@@ -17,7 +17,7 @@ GNSS spoofing can manipulate navigation measurements without necessarily causing
 
 NavIC-SHIELD studies this problem through a controlled end-to-end simulation and evaluation pipeline.
 
-\`\`\`text
+```text
 NavIC Constellation
         |
         v
@@ -58,7 +58,7 @@ Temporal Detector        Spatial Detector
                     |
                     v
           Resilient Position
-\`\`\`
+```
 
 The objective is therefore broader than binary spoofing classification:
 
@@ -101,7 +101,7 @@ NavIC-SHIELD evaluates three controlled spoofing behaviours.
 
 A sudden pseudorange offset is introduced into the targeted satellite's measurements.
 
-\`\`\`text
+```text
 Normal --------------------+
                             |
                             v
@@ -109,7 +109,7 @@ Normal --------------------+
                             |
                             v
 Normal --------------------+
-\`\`\`
+```
 
 The abrupt discontinuity makes this attack comparatively easier to detect.
 
@@ -117,7 +117,7 @@ The abrupt discontinuity makes this attack comparatively easier to detect.
 
 The spoofing error increases gradually during the attack window.
 
-\`\`\`text
+```text
 Error
   |
   |             /
@@ -127,7 +127,7 @@ Error
   |_____/
   |
   +-----------------------> Time
-\`\`\`
+```
 
 The drift scenario tests whether the system can detect gradually developing navigation corruption before it produces a large positioning error.
 
@@ -141,7 +141,7 @@ Its importance is that it exposes the limitations of purely temporal detection a
 
 The project is organized into several functional layers.
 
-\`\`\`text
+```text
                     NAVIC-SHIELD
                          |
         +----------------+----------------+
@@ -184,11 +184,11 @@ Const. Terrain Observation         Step Drift Evasive
               |
               v
       RESILIENT POSITION
-\`\`\`
+```
 
 The major software components are:
 
-\`\`\`text
+```text
 simulator/
     constellation.py
     terrain.py
@@ -219,7 +219,7 @@ scripts/
     generate_dataset.py
     run_all.py
     run_day4_integration.py
-\`\`\`
+```
 
 ## How It Works
 
@@ -257,12 +257,12 @@ For visible satellites, the simulator generates synthetic navigation observation
 
 The pseudorange model follows the basic relationship:
 
-\`\`\`text
+```text
 pseudorange = geometric range
             + receiver clock bias
             + measurement noise
             + attack contribution
-\`\`\`
+```
 
 Additional signal information such as C/N0 and Doppler is also represented in the observation pipeline.
 
@@ -274,7 +274,7 @@ The final integration experiment uses staggered attack windows so that each atta
 
 The experiment configuration is:
 
-\`\`\`text
+```text
 Step attack
     Target: IRNSS-1C
     Start:  9.6 h
@@ -290,7 +290,7 @@ Evasive attack
     Start:  17.6 h
     Ramp:   2.0 h
     Hold:   subsequent period
-\`\`\`
+```
 
 ### 5. Temporal Detection
 
@@ -311,7 +311,7 @@ A satellite that begins behaving differently from its own recent history may be 
 
 Spatial features compare a satellite against the other simultaneously visible satellites.
 
-\`\`\`text
+```text
              Satellite A
                    |
                    |
@@ -321,7 +321,7 @@ Satellite B -------+------- Satellite C
                 Receiver
                    |
              Satellite D
-\`\`\`
+```
 
 If one satellite's residual behaviour strongly disagrees with the consensus of the other visible satellites, the satellite receives stronger anomaly evidence.
 
@@ -331,19 +331,19 @@ Spatial evidence is particularly useful when an attack does not create a strong 
 
 The system combines temporal and spatial evidence into a fused spoofing probability.
 
-\`\`\`text
+```text
 Temporal Evidence --------\
                            \
                             --> Fusion --> Spoof Probability
                            /
 Spatial Evidence --------/
-\`\`\`
+```
 
 This creates a satellite-level estimate of how suspicious each observation is.
 
 The fusion stage is intended to exploit complementary information:
 
-\`\`\`text
+```text
 Temporal:
 "Did this satellite change abnormally?"
 
@@ -352,7 +352,7 @@ Spatial:
 
 Fusion:
 "How likely is this satellite to be compromised?"
-\`\`\`
+```
 
 ### 8. Navigation Integrity Confidence
 
@@ -360,7 +360,7 @@ Satellite-level spoofing probabilities are aggregated into an epoch-level naviga
 
 This confidence represents the current assessment of whether the GNSS navigation solution should be trusted.
 
-\`\`\`text
+```text
 High confidence
       |
       v
@@ -370,7 +370,7 @@ Low confidence
       |
       v
 Trust prediction / fallback more
-\`\`\`
+```
 
 ### 9. GNSS Position Solver
 
@@ -378,9 +378,9 @@ The receiver position is estimated from pseudorange observations.
 
 The solver estimates:
 
-\`\`\`text
+```text
 [x, y, z, clock_bias]
-\`\`\`
+```
 
 using the available visible satellites.
 
@@ -396,7 +396,7 @@ NavIC-SHIELD therefore uses a confidence-aware Kalman fallback.
 
 Conceptually:
 
-\`\`\`text
+```text
              Prediction
                  |
                  v
@@ -416,7 +416,7 @@ Conceptually:
             \            /
              v          v
           Protected Position
-\`\`\`
+```
 
 The objective is not to eliminate GNSS usage, but to reduce dependence on unreliable GNSS measurements when the integrity assessment indicates elevated risk.
 
@@ -424,13 +424,13 @@ The objective is not to eliminate GNSS usage, but to reduce dependence on unreli
 
 The complete experiment can be executed through:
 
-\`\`\`bash
+```bash
 python scripts/run_all.py
-\`\`\`
+```
 
 The pipeline performs five stages:
 
-\`\`\`text
+```text
 STEP 1
 Simulator
     |
@@ -466,7 +466,7 @@ Output Generation
 CSV Results
 Dashboard Data
 Evaluation Summary
-\`\`\`
+```
 
 ## Experimental Results
 
@@ -503,13 +503,13 @@ This is an important result rather than something to hide: the experiment demons
 
 The evasive test window also provides a useful latency measurement.
 
-\`\`\`text
+```text
 Spatial detection latency:
 1474.36 s  (~24.6 min)
 
 Temporal detection latency:
 2404.36 s  (~40.1 min)
-\`\`\`
+```
 
 Spatial evidence therefore responded earlier than the temporal detector in this experiment, although its overall classification recall did not improve.
 
@@ -527,13 +527,13 @@ Measured position error during the attack windows:
 
 The most significant result is the drift scenario:
 
-\`\`\`text
+```text
 Raw mean error:
 6289.44 m
 
 Kalman mean error:
 2.94 m
-\`\`\`
+```
 
 This demonstrates the central purpose of the project: detecting navigation degradation and using a fallback mechanism to prevent the navigation solution from following a severely corrupted GNSS estimate.
 
@@ -541,12 +541,12 @@ This demonstrates the central purpose of the project: detecting navigation degra
 
 The final integration run produced:
 
-\`\`\`text
+```text
 Mean confidence:              0.596
 Minimum confidence:           0.000
 Epochs below reject threshold: 1153 / 2873
 Reject threshold:             0.15
-\`\`\`
+```
 
 The dashboard exposes this confidence evolution together with the attack windows and navigation error.
 
@@ -556,9 +556,9 @@ The project includes an interactive Streamlit dashboard.
 
 Launch it with:
 
-\`\`\`bash
+```bash
 streamlit run dashboard/app.py
-\`\`\`
+```
 
 The dashboard provides:
 
@@ -575,9 +575,9 @@ The dashboard provides:
 
 The dashboard reads its primary outputs from:
 
-\`\`\`text
+```text
 results/csv/
-\`\`\`
+```
 
 The main dashboard files are:
 
@@ -591,7 +591,7 @@ The dashboard is designed as an analysis interface rather than merely a visualiz
 
 ## Repository Structure
 
-\`\`\`text
+```text
 NavIC-SHIELD/
 |
 +-- dashboard/
@@ -638,62 +638,62 @@ NavIC-SHIELD/
 +-- requirements.txt
 +-- README.md
 +-- .gitignore
-\`\`\`
+```
 
 ## Installation
 
 Clone the repository:
 
-\`\`\`bash
+```bash
 git clone https://github.com/shreya-sudo-dev/NavIC-SHIELD.git
 cd NavIC-SHIELD
-\`\`\`
+```
 
 Create a virtual environment:
 
-\`\`\`bash
+```bash
 python -m venv venv
-\`\`\`
+```
 
 Activate it on Windows:
 
-\`\`\`bash
+```bash
 venv\Scripts\activate
-\`\`\`
+```
 
 Install dependencies:
 
-\`\`\`bash
+```bash
 pip install -r requirements.txt
-\`\`\`
+```
 
 ## Running the Project
 
 ### Run the complete experiment
 
-\`\`\`bash
+```bash
 python scripts/run_all.py
-\`\`\`
+```
 
 This runs the simulator, spoofing scenarios, feature engineering, model training, evaluation, and result generation.
 
 ### Generate dashboard outputs
 
-\`\`\`bash
+```bash
 python scripts/run_day4_integration.py
-\`\`\`
+```
 
 ### Launch the dashboard
 
-\`\`\`bash
+```bash
 streamlit run dashboard/app.py
-\`\`\`
+```
 
 ## Output Files
 
 The experiment produces the following primary outputs:
 
-\`\`\`text
+```text
 results/csv/
 |
 +-- day4_position_results.csv
@@ -713,7 +713,7 @@ results/csv/
 |
 +-- summary.csv
 |   Headline temporal-versus-fusion evaluation
-\`\`\`
+```
 
 Research-only experimental outputs are not required for the final dashboard and are intentionally excluded from the clean repository.
 
@@ -725,7 +725,7 @@ A spoofing detector that identifies an attack but allows the navigation solution
 
 NavIC-SHIELD therefore connects:
 
-\`\`\`text
+```text
 Detection
     |
     v
@@ -736,7 +736,7 @@ Navigation Decision
     |
     v
 Position Protection
-\`\`\`
+```
 
 ### 2. Temporal and spatial evidence are complementary
 
@@ -764,9 +764,9 @@ The evasive attack remains difficult for the current detector.
 
 The reported experiment shows:
 
-\`\`\`text
+```text
 Fusion evasive recall = 0.0889
-\`\`\`
+```
 
 This indicates that the current spatio-temporal detector should not be interpreted as a complete solution to sophisticated evasive spoofing.
 
@@ -776,7 +776,7 @@ Instead, the result identifies a concrete research direction: improving detectio
 
 The current system establishes a complete experimental loop:
 
-\`\`\`text
+```text
 Satellite Simulation
         |
         v
@@ -796,7 +796,7 @@ Resilient Positioning
         |
         v
 Interactive Evaluation
-\`\`\`
+```
 
 Future work can extend this framework toward:
 
@@ -846,7 +846,7 @@ The primary contribution of NavIC-SHIELD is the integration of spoofing detectio
 
 Rather than treating spoofing detection as an isolated classification problem, the system evaluates the complete chain:
 
-\`\`\`text
+```text
 Satellite-Level Anomaly
         |
         v
@@ -860,7 +860,7 @@ Positioning Decision
         |
         v
 Protected Navigation
-\`\`\`
+```
 
 This makes it possible to evaluate not only whether an attack is detected, but also whether the navigation system remains usable when GNSS measurements become unreliable.
 
