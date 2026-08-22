@@ -16,11 +16,14 @@ env/
 .DS_Store
 Thumbs.db
 
+# Logs
+*.log
+
 # Generated intermediate datasets
 results/csv/full_dataset.csv
 results/csv/dataset_day1_clean.csv
 
-# Real-GNSS research/experimental material
+# Real-GNSS research / experimental material
 data/real_gnss/
 results/csv/real_gnss_*.csv
 results/figures/real_gnss_*.png
@@ -28,6 +31,3 @@ results/figures/real_gnss_*.png
 # Development-only files
 plot_spatial_vs_temporal.py
 simulator/test_terrain.py
-
-# Temporary files
-*.log
