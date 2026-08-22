@@ -58,7 +58,13 @@ DRIFT_DURATION_S = 7200         # 2h -- reverts before evasive_start
 EVASIVE_TARGET_OFFSET_M = 150.0
 EVASIVE_RAMP_DURATION_S = 2 * 3600
 
-TEST_WINDOW_S = EVASIVE_RAMP_DURATION_S + 30*60        # 45 min after each attack's own onset
+TEST_WINDOW_S = 45 * 60         # 45 min after each attack's own onset --
+                                 # must stay short (well under the 2h evasive
+                                 # ramp duration) or the test window starts
+                                 # including the already-plateaued, easy-to-
+                                 # detect steady-state portion of the attack,
+                                 # which dilutes the temporal-vs-fusion gap
+                                 # this whole comparison exists to measure
 TRAIN_GAP_S = 300               # gap after test window before more train data resumes
 
 def first_crossing_time(df, satellite_id, score_col, threshold, attack_start):
