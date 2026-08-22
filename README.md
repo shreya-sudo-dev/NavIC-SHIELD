@@ -43,6 +43,9 @@ Temporal Detector        Spatial Detector
           Spatio-Temporal Fusion
                     |
                     v
+       Satellite Threat Assessment
+                    |
+                    v
        Navigation Integrity Confidence
                     |
              +------+------+
@@ -59,7 +62,6 @@ Temporal Detector        Spatial Detector
                     v
           Resilient Position
 ```
-
 The objective is therefore broader than binary spoofing classification:
 
 - Detect anomalous satellite behaviour.
@@ -593,53 +595,43 @@ The dashboard is designed as an analysis interface rather than merely a visualiz
 
 ```text
 NavIC-SHIELD/
-|
-+-- dashboard/
-|   +-- app.py
-|
-+-- features/
-|   +-- __init__.py
-|   +-- temporal.py
-|   +-- spatial.py
-|
-+-- models/
-|   +-- __init__.py
-|   +-- baseline_detector.py
-|   +-- fusion.py
-|
-+-- navigation/
-|   +-- __init__.py
-|   +-- position_solver.py
-|   +-- kalman_fallback.py
-|
-+-- simulator/
-|   +-- __init__.py
-|   +-- constellation.py
-|   +-- terrain.py
-|   +-- observation.py
-|   +-- receiver.py
-|
-+-- spoofing/
-|   +-- __init__.py
-|   +-- step_attack.py
-|   +-- drift_attack.py
-|   +-- evasive_attack.py
-|
-+-- scripts/
-|   +-- generate_dataset.py
-|   +-- run_all.py
-|   +-- run_day4_integration.py
-|
-+-- results/
-|   +-- csv/
-|   +-- figures/
-|
-+-- config.py
-+-- requirements.txt
-+-- README.md
-+-- .gitignore
+├── dashboard/
+│   └── app.py
+├── features/
+│   ├── __init__.py
+│   ├── temporal.py
+│   └── spatial.py
+├── models/
+│   ├── __init__.py
+│   ├── baseline_detector.py
+│   └── fusion.py
+├── navigation/
+│   ├── __init__.py
+│   ├── position_solver.py
+│   └── kalman_fallback.py
+├── simulator/
+│   ├── __init__.py
+│   ├── constellation.py
+│   ├── terrain.py
+│   ├── observation.py
+│   └── receiver.py
+├── spoofing/
+│   ├── __init__.py
+│   ├── step_attack.py
+│   ├── drift_attack.py
+│   └── evasive_attack.py
+├── scripts/
+│   ├── generate_dataset.py
+│   ├── run_all.py
+│   └── run_day4_integration.py
+├── results/
+│   ├── csv/
+│   └── figures/
+├── config.py
+├── requirements.txt
+├── README.md
+└── .gitignore
 ```
-
 ## Installation
 
 Clone the repository:
@@ -691,32 +683,24 @@ streamlit run dashboard/app.py
 
 ## Output Files
 
-The experiment produces the following primary outputs:
+The final dashboard and evaluation pipeline produces the following primary outputs:
 
 ```text
-results/csv/
-|
-+-- day4_position_results.csv
-|   Per-epoch raw and Kalman-protected navigation results
-|
-+-- day4_satellite_level.csv
-|   Satellite-level visibility, geometry, and spoofing information
-|
-+-- day4_attack_info.csv
-|   Attack target and attack-window metadata
-|
-+-- day4_summary.csv
-|   Navigation error summary by attack type
-|
-+-- full_dataset.csv
-|   Full experiment dataset
-|
-+-- summary.csv
-|   Headline temporal-versus-fusion evaluation
+results/
+└── csv/
+    ├── day4_position_results.csv
+    │   Per-epoch raw and Kalman-protected navigation results
+    ├── day4_satellite_level.csv
+    │   Satellite-level visibility, geometry, and spoofing information
+    ├── day4_attack_info.csv
+    │   Attack targets and attack-window metadata
+    ├── day4_summary.csv
+    │   Navigation error summary by attack type
+    └── summary.csv
+        Temporal-only versus temporal + spatial fusion evaluation
 ```
 
-Research-only experimental outputs are not required for the final dashboard and are intentionally excluded from the clean repository.
-
+Research-only experimental datasets, raw GNSS material, and intermediate outputs are intentionally excluded from the clean repository.
 ## Design Principles
 
 ### 1. Detection is not enough
