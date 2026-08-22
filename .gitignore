@@ -1,4 +1,4 @@
-# Python cache
+# Python
 __pycache__/
 *.py[cod]
 *.pyo
@@ -7,15 +7,6 @@ __pycache__/
 venv/
 .venv/
 env/
-ENV/
-
-# Environment / secrets
-.env
-.env.*
-!.env.example
-
-# Jupyter
-.ipynb_checkpoints/
 
 # IDE
 .vscode/
@@ -27,9 +18,16 @@ Thumbs.db
 
 # Logs
 *.log
-# Large real GNSS datasets
-data/real_gnss/google/sample/device_gnss.csv
-data/real_gnss/google/sample/normalized_gnss.csv
 
-# Local real-GNSS research figures
+# Generated intermediate datasets
+results/csv/full_dataset.csv
+results/csv/dataset_day1_clean.csv
+
+# Real-GNSS research / experimental material
+data/real_gnss/
+results/csv/real_gnss_*.csv
 results/figures/real_gnss_*.png
+
+# Development-only files
+plot_spatial_vs_temporal.py
+simulator/test_terrain.py
