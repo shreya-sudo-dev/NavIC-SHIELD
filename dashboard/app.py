@@ -358,6 +358,60 @@ st.markdown(
         padding: 14px 16px;
     }}
 
+    .evidence-grid {{
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-top: 16px;
+    }}
+
+    .evidence-item {{
+        background: rgba(255,255,255,0.025);
+        border: 1px solid rgba(255,255,255,0.07);
+        border-radius: 8px;
+        padding: 16px;
+        min-height: 92px;
+    }}
+
+    .evidence-label {{
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        color: #7f95a8;
+        margin-bottom: 8px;
+    }}
+
+    .evidence-value {{
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: #f1f5f9;
+        line-height: 1.1;
+    }}
+
+    .evidence-sub {{
+        margin-top: 7px;
+        font-size: 0.72rem;
+        color: #718497;
+    }}
+
+    .evidence-divider {{
+        height: 1px;
+        background: rgba(255,255,255,0.07);
+        margin: 18px 0 4px 0;
+    }}
+
+    @media (max-width: 900px) {{
+        .evidence-grid {{
+            grid-template-columns: repeat(2, 1fr);
+        }}
+    }}
+
+    @media (max-width: 600px) {{
+        .evidence-grid {{
+            grid-template-columns: 1fr;
+        }}
+    }}
+
     .metric-label {{
         font-size: 9px;
         font-weight: 700;
@@ -651,9 +705,9 @@ st.markdown(
     }}
 
 
-    
 
-    
+
+
     /* ------------------------------------------------------------
        FOOTER
     ------------------------------------------------------------ */
@@ -1111,6 +1165,28 @@ with col4:
 
 st.markdown("---")
 
+# ---------------------------------------------------------------------------
+# SHARED SATELLITE SELECTION
+# ---------------------------------------------------------------------------
+
+if "global_selected_satellite" not in st.session_state:
+    st.session_state.global_selected_satellite = None
+
+
+def sync_satellite_selection(source_key):
+    """Keep satellite selection synchronized across dashboard sections."""
+    selected = st.session_state.get(source_key)
+
+    if selected is not None:
+        st.session_state.global_selected_satellite = selected
+
+        # Synchronize both satellite selector widgets.
+        if source_key != "constellation_satellite_selector":
+            st.session_state.constellation_satellite_selector = selected
+
+        if source_key != "threat_intelligence_satellite":
+            st.session_state.threat_intelligence_satellite = selected
+
 tab1, tab2, tab3, tab4 = st.tabs([
     "Constellation Intelligence", "Signal Threat Intelligence", "Navigation Assurance", "Detector Performance",
 ])
@@ -1132,7 +1208,7 @@ with tab1:
     snapshot_time = sat_df["t"].iloc[
             np.abs(sat_df["t"].to_numpy() - t_selected).argmin()
         ]
-    
+
     snapshot = sat_df[
         (sat_df["t"] == snapshot_time) &
         (sat_df["visible"])
@@ -1205,8 +1281,8 @@ with tab1:
         """,
         unsafe_allow_html=True,
     )
-    
-    
+
+
 
     col1, col2 = st.columns([2, 1])
     with col1:
@@ -1312,13 +1388,35 @@ with tab1:
         # SATELLITE SELECTION
         # ---------------------------------------------------------------------------
 
-        satellite_options = snapshot["satellite_id"].astype(str).tolist()
-
-        selected_satellite_id = st.selectbox(
-            "Inspect satellite",
-            satellite_options,
-            key="selected_satellite_id",
+        satellite_options = (
+            snapshot["satellite_id"]
+            .astype(str)
+            .drop_duplicates()
+            .tolist()
         )
+
+        if satellite_options:
+
+            # Preserve the shared selection if possible.
+            if (
+                st.session_state.global_selected_satellite
+                not in satellite_options
+            ):
+                st.session_state.global_selected_satellite = satellite_options[0]
+
+            selected_satellite_id = st.selectbox(
+                "Inspect satellite",
+                satellite_options,
+                index=satellite_options.index(
+                    st.session_state.global_selected_satellite
+                ),
+                key="constellation_satellite_selector",
+                on_change=sync_satellite_selection,
+                args=("constellation_satellite_selector",),
+            )
+
+        else:
+            selected_satellite_id = None
 
         selected_rows = snapshot[
             snapshot["satellite_id"].astype(str) == selected_satellite_id
@@ -1329,7 +1427,7 @@ with tab1:
             if not selected_rows.empty
             else None
         )
-        
+
         if selected_satellite is not None:
 
             satellite_id = str(selected_satellite["satellite_id"])
@@ -1471,210 +1569,147 @@ with tab1:
         st.dataframe(display_cols.round(2), hide_index=True, width="stretch")
 
 # ---------------------------------------------------------------------------
-# TAB 2: Attack monitor -- interactive, per-satellite + epoch confidence
+# TAB 2: SIGNAL THREAT INTELLIGENCE
 # ---------------------------------------------------------------------------
 with tab2:
     st.subheader("Signal Threat Intelligence")
     st.caption(
-        "Track satellite-level anomaly probability and temporal behavior "
-        "to identify persistent deviations from nominal signal conditions."
-    )
-    fig = go.Figure()
-    fig.update_layout(
-        clickmode="event+select"
+        "Inspect satellite-level detection intelligence, signal geometry, "
+        "attack classification, and temporal anomaly behavior."
     )
 
-    for _, row in attack_info.iterrows():
+    # -----------------------------------------------------------------------
+    # SATELLITE SELECTION
+    # -----------------------------------------------------------------------
 
-        sat_id = row["satellite_id"]
-        attack_type = row["attack_type"]
+    satellite_options = sorted(
+        sat_df["satellite_id"]
+        .dropna()
+        .astype(str)
+        .unique()
+        .tolist()
+    )
 
-        sub = sat_df[
-            (sat_df["satellite_id"] == sat_id) &
+    if not satellite_options:
+        st.warning("No visible satellites are available.")
+    else:
+
+         # If nothing has been selected yet, use the first satellite.
+        if (
+            st.session_state.global_selected_satellite
+            not in satellite_options
+        ):
+            st.session_state.global_selected_satellite = satellite_options[0]
+
+        selected_satellite_id = st.selectbox(
+            "SELECT SATELLITE",
+            satellite_options,
+            index=satellite_options.index(
+                st.session_state.global_selected_satellite
+            ),
+            key="threat_intelligence_satellite",
+            on_change=sync_satellite_selection,
+            args=("threat_intelligence_satellite",),
+            help="Select a satellite to inspect its complete signal-threat record.",
+        )
+
+        # Current-epoch record for selected satellite
+        selected_current = snapshot[
+            snapshot["satellite_id"].astype(str) == selected_satellite_id
+        ].copy()
+
+        # If the satellite is not visible at the selected epoch,
+        # use its nearest available observation.
+        if selected_current.empty:
+
+            satellite_all_history = sat_df[
+                sat_df["satellite_id"].astype(str) == selected_satellite_id
+            ].copy()
+
+            if not satellite_all_history.empty:
+
+                nearest_idx = (
+                    satellite_all_history["t"] - t_selected
+                ).abs().idxmin()
+
+                selected_current = satellite_all_history.loc[
+                    [nearest_idx]
+                ].copy()
+
+        # Full temporal history for selected satellite
+        selected_history = sat_df[
+            (sat_df["satellite_id"].astype(str) == selected_satellite_id) &
             (sat_df["visible"])
         ].sort_values("t").copy()
 
-        sub["t_hours"] = sub["t"] / 3600
+        # -------------------------------------------------------------------
+        # CURRENT SATELLITE RECORD
+        # -------------------------------------------------------------------
 
-        spoof_probability = (
-            sub["fusion_spoof_prob"]
-            .fillna(0)
-            .astype(float)
-        )
-
-        customdata = np.column_stack([
-            sub["satellite_id"].astype(str),
-            sub["t"].to_numpy(),
-            spoof_probability.to_numpy(),
-        ])
-
-        fig.add_trace(
-            go.Scatter(
-                x=sub["t_hours"],
-                y=spoof_probability,
-
-                # Lines + small markers = clickable data points
-                mode="lines+markers",
-
-                name=f"{sat_id} ({attack_type})",
-
-                line=dict(
-                    color=ATTACK_COLORS.get(
-                        attack_type,
-                        TEXT_MUTED
-                    ),
-                    width=2,
-                ),
-
-                marker=dict(
-                    size=5,
-                    opacity=0.85,
-                ),
-
-                customdata=customdata,
-
-                hovertemplate=(
-                    "<b>%{customdata[0]}</b><br>"
-                    "Time: %{customdata[1]:.0f} s"
-                    " (%{x:.2f} h)<br>"
-                    "Spoof probability: %{customdata[2]:.3f}"
-                    "<extra></extra>"
-                ),
+        if selected_current.empty:
+            st.warning(
+                f"No current observation is available for {selected_satellite_id}."
             )
-        )
+        else:
 
-        start, end = attack_windows[attack_type]
+            current = selected_current.iloc[0]
 
-        fig.add_vrect(
-            x0=start / 3600,
-            x1=end / 3600,
-            fillcolor=ATTACK_COLORS.get(
-                attack_type,
-                TEXT_MUTED
-            ),
-            opacity=0.08,
-            line_width=0,
-        )
+            azimuth = float(current["azimuth_deg"])
+            elevation = float(current["elevation_deg"])
 
-    fig.add_vline(
-        x=t_hours,
-        line_width=2,
-        line_dash="dash",
-        line_color=CYAN,
-        annotation_text=f"SELECTED  {t_hours:.2f} h",
-        annotation_position="top",
-        annotation_font_color=CYAN,
-    )
+            current_spoof = float(
+                current["fusion_spoof_prob"]
+                if pd.notna(current["fusion_spoof_prob"])
+                else 0.0
+            )
 
-    fig.add_hline(y=0.5, line_dash="dot", line_color=TEXT_MUTED, opacity=0.6,annotation_text="spoof threshold",
-        annotation_position="right",)
-    fig.update_layout(**PLOTLY_LAYOUT, height=420, xaxis_title="time (hours)",
-                       yaxis_title="fusion spoof probability", yaxis_range=[-0.05, 1.05])
-    attack_event = st.plotly_chart(
-        fig,
-        width="stretch",
-        key="spoof_probability_chart",
-        on_select="rerun",
-        selection_mode="points",
-    )
+            # ---------------------------------------------------------------
+            # STATUS CLASSIFICATION
+            # ---------------------------------------------------------------
 
-    # ---------------------------------------------------------------------------
-    # Clicked point -> mission timeline
-    # ---------------------------------------------------------------------------
+            if current_spoof >= 0.80:
+                signal_status = "CRITICAL"
+                signal_color = RED
+                signal_assessment = (
+                    "High-confidence anomalous behavior is currently "
+                    "associated with this satellite. Its measurements "
+                    "should be treated as compromised until the anomaly "
+                    "subsides."
+                )
 
-    st.markdown("---")
-    st.subheader("Navigation Integrity Confidence")
-    st.caption(
-        "Navigation confidence reflects the current integrity assessment "
-        "used to determine when resilient positioning assistance is required."
-    )
-    fig2 = go.Figure()
+            elif current_spoof >= 0.50:
+                signal_status = "SUSPECTED"
+                signal_color = RED
+                signal_assessment = (
+                    "The selected satellite currently exhibits elevated "
+                    "spoofing probability. Measurement integrity should "
+                    "be treated with caution."
+                )
 
-    fig2.add_trace(
-        go.Scatter(
-            x=epoch_df["t"] / 3600,
-            y=epoch_df["confidence"],
+            elif current_spoof >= 0.25:
+                signal_status = "ELEVATED"
+                signal_color = AMBER
+                signal_assessment = (
+                    "Moderate anomalous evidence is present. Continued "
+                    "monitoring is recommended to determine whether the "
+                    "behavior persists."
+                )
 
-            mode="lines+markers",
+            else:
+                signal_status = "NOMINAL"
+                signal_color = GREEN
+                signal_assessment = (
+                    "The selected satellite is currently operating within "
+                    "the expected signal-integrity baseline."
+                )
 
-            name="confidence",
+            # ---------------------------------------------------------------
+            # ATTACK INFORMATION
+            # ---------------------------------------------------------------
 
-            line=dict(
-                color=ACCENT,
-                width=1.5,
-            ),
-
-            marker=dict(
-                size=4,
-                opacity=0.7,
-            ),
-
-            customdata=np.column_stack([
-                epoch_df["t"],
-                epoch_df["confidence"],
-                epoch_df["raw_error_m"],
-                epoch_df["kalman_error_m"],
-            ]),
-
-            hovertemplate=(
-                "<b>Navigation Epoch</b><br>"
-                "Time: %{customdata[0]:.0f} s"
-                " (%{x:.2f} h)<br>"
-                "Confidence: %{customdata[1]:.3f}<br>"
-                "Raw error: %{customdata[2]:.2f} m<br>"
-                "Kalman error: %{customdata[3]:.2f} m"
-                "<extra></extra>"
-            ),
-        )
-    )
-
-    fig2.add_vline(
-        x=t_hours,
-        line_width=2,
-        line_dash="dash",
-        line_color=CYAN,
-        annotation_text=f"SELECTED  {t_hours:.2f} h",
-        annotation_position="top",
-        annotation_font_color=CYAN,
-    )
-
-    fig2.add_hline(y=0.15, line_dash="dash", line_color=ACCENT_DANGER,
-                    annotation_text="reject threshold", annotation_font_color=ACCENT_DANGER)
-    for attack_type, (start, end) in attack_windows.items():
-        fig2.add_vrect(x0=start / 3600, x1=end / 3600,
-                        fillcolor=ATTACK_COLORS.get(attack_type, TEXT_MUTED), opacity=0.08,
-                        line_width=0)
-    fig2.update_layout(**PLOTLY_LAYOUT, height=300, xaxis_title="time (hours)",
-                        yaxis_title="confidence")
-    confidence_event = st.plotly_chart(
-        fig2,
-        width="stretch",
-        key="confidence_chart",
-        on_select="rerun",
-        selection_mode="points",
-    )
-
-    # ---------------------------------------------------------------------------
-    # CLICKED POINT -> MISSION EVENT
-    # ---------------------------------------------------------------------------
-
-    if attack_event and attack_event.selection.points:
-
-        point = attack_event.selection.points[0]
-
-        customdata = point.get("customdata")
-
-        if customdata is not None:
-
-            satellite_id = str(customdata[0])
-            selected_t = float(customdata[1])
-            spoof_probability = float(customdata[2])
-
-            st.session_state.selected_t_hours = selected_t / 3600
-
-            # Identify attack scenario for this satellite
             matching_attack = attack_info[
-                attack_info["satellite_id"].astype(str) == satellite_id
+                attack_info["satellite_id"].astype(str)
+                == selected_satellite_id
             ]
 
             if not matching_attack.empty:
@@ -1691,157 +1726,575 @@ with tab2:
 
                 if pd.notna(attack_row["duration_s"]):
 
-                    attack_end = (
-                        attack_start +
-                        float(attack_row["duration_s"])
+                    attack_duration = float(
+                        attack_row["duration_s"]
                     )
+
+                    attack_end = attack_start + attack_duration
 
                 else:
 
+                    attack_duration = None
                     attack_end = float(
                         epoch_df["t"].max()
                     )
 
             else:
 
-                attack_type = "UNCLASSIFIED"
+                attack_type = "NONE"
                 attack_start = None
                 attack_end = None
+                attack_duration = None
 
-            st.session_state.selected_event = {
-                "satellite_id": satellite_id,
-                "time_s": selected_t,
-                "time_hours": selected_t / 3600,
-                "spoof_probability": spoof_probability,
-                "attack_type": attack_type,
-                "attack_start": attack_start,
-                "attack_end": attack_end,
-            }
+            # ---------------------------------------------------------------
+            # TEMPORAL STATISTICS
+            # ---------------------------------------------------------------
 
-            st.rerun()
+            if not selected_history.empty:
 
-    # ---------------------------------------------------------------------------
-    # SELECTED EVENT INTELLIGENCE
-    # ---------------------------------------------------------------------------
+                history_prob = (
+                    selected_history["fusion_spoof_prob"]
+                    .fillna(0)
+                    .astype(float)
+                )
 
-    selected_event = st.session_state.get("selected_event")
+                max_spoof = float(history_prob.max())
+                mean_spoof = float(history_prob.mean())
 
-    if selected_event is not None:
+                suspicious_epochs = int(
+                    (history_prob >= 0.50).sum()
+                )
 
-        st.markdown("---")
-        st.subheader("Event Intelligence")
+                total_epochs = len(history_prob)
 
-        event_satellite = selected_event["satellite_id"]
-        event_time_s = selected_event["time_s"]
-        event_time_h = selected_event["time_hours"]
-        event_spoof = selected_event["spoof_probability"]
-        event_attack = selected_event["attack_type"]
+                suspicious_fraction = (
+                    suspicious_epochs / total_epochs
+                    if total_epochs > 0
+                    else 0.0
+                )
 
-        if event_spoof >= 0.80:
-            event_status = "CRITICAL"
-            event_color = RED
-            event_assessment = (
-                "High-confidence anomalous signal behavior detected. "
-                "The selected satellite is contributing significant threat "
-                "evidence to the navigation integrity assessment."
-            )
+            else:
 
-        elif event_spoof >= 0.50:
-            event_status = "SUSPECTED"
-            event_color = RED
-            event_assessment = (
-                "Elevated spoofing probability detected. "
-                "The selected satellite should be treated as potentially compromised."
-            )
+                max_spoof = current_spoof
+                mean_spoof = current_spoof
+                suspicious_epochs = 0
+                total_epochs = 0
+                suspicious_fraction = 0.0
 
-        elif event_spoof >= 0.25:
-            event_status = "ELEVATED"
-            event_color = AMBER
-            event_assessment = (
-                "Moderate anomalous behavior detected. "
-                "Continued monitoring is recommended."
-            )
+            # ===============================================================
+            # HEADER
+            # ===============================================================
 
-        else:
-            event_status = "NOMINAL"
-            event_color = GREEN
-            event_assessment = (
-                "The selected measurement remains within the nominal "
-                "signal-integrity range."
-            )
-
-        st.markdown(
-            f"""
-            <div class="threat-panel">
-                <div class="threat-panel-header">
-                    <div>
-                        <div class="section-kicker">
-                            SELECTED SIGNAL EVENT
+            st.markdown(
+                f"""
+                <div class="threat-panel" style="margin-top:18px;">
+                    <div class="threat-panel-header">
+                        <div>
+                            <div class="section-kicker">
+                                SATELLITE INTELLIGENCE
+                            </div>
+                            <div class="threat-panel-title">
+                                {selected_satellite_id}
+                            </div>
                         </div>
-                        <div class="threat-panel-title">
-                            {event_satellite}
+                        <div class="threat-badge"
+                            style="
+                                color:{signal_color};
+                                border-color:{signal_color};
+                                background:rgba(255,255,255,0.03);
+                            ">
+                            <span
+                                class="threat-status-dot"
+                                style="background:{signal_color};">
+                            </span>
+                            {signal_status}
                         </div>
                     </div>
-                    <div class="threat-badge"
-                        style="
-                            color:{event_color};
-                            border-color:{event_color};
-                            background:rgba(255,255,255,0.03);
-                        ">
-                        <span
-                            class="threat-status-dot"
-                            style="background:{event_color};">
-                        </span>
-                        {event_status}
-                    </div>
-                </div>
-                <div class="threat-grid">
-                    <div class="threat-metric">
-                        <div class="metric-label">
-                            EVENT TIME
+                    <div class="assessment-box">
+                        <div class="assessment-label">
+                            CURRENT SIGNAL ASSESSMENT
                         </div>
-                        <div class="metric-value">
-                            {event_time_h:.2f} h
-                        </div>
-                    </div>
-                    <div class="threat-metric">
-                        <div class="metric-label">
-                            ATTACK SCENARIO
-                        </div>
-                        <div class="metric-value">
-                            {event_attack}
-                        </div>
-                    </div>
-                    <div class="threat-metric">
-                        <div class="metric-label">
-                            SPOOF PROBABILITY
-                        </div>
-                        <div class="metric-value">
-                            {event_spoof:.3f}
+                        <div class="assessment-text">
+                            {signal_assessment}
                         </div>
                     </div>
                 </div>
-                <div class="assessment-box">
-                    <div class="assessment-label">
-                        EVENT TIMESTAMP
+                """,
+                unsafe_allow_html=True,
+            )
+
+            # ===============================================================
+            # CURRENT DETECTION METRICS
+            # ===============================================================
+
+            st.markdown("#### Current Detection State")
+
+            col1, col2, col3, col4 = st.columns(4)
+
+            with col1:
+                st.metric(
+                    "Fusion Spoof Probability",
+                    f"{current_spoof:.3f}",
+                )
+
+            with col2:
+                st.metric(
+                    "Azimuth",
+                    f"{azimuth:.2f}°",
+                )
+
+            with col3:
+                st.metric(
+                    "Elevation",
+                    f"{elevation:.2f}°",
+                )
+
+            with col4:
+                st.metric(
+                    "Selected Epoch",
+                    f"{t_hours:.2f} h",
+                )
+
+            # ===============================================================
+            # TEMPORAL DETECTION METRICS
+            # ===============================================================
+
+            st.markdown("#### Historical Detection Profile")
+
+            col1, col2, col3, col4 = st.columns(4)
+
+            with col1:
+                st.metric(
+                    "Peak Spoof Probability",
+                    f"{max_spoof:.3f}",
+                )
+
+            with col2:
+                st.metric(
+                    "Mean Spoof Probability",
+                    f"{mean_spoof:.3f}",
+                )
+
+            with col3:
+                st.metric(
+                    "Suspicious Epochs",
+                    suspicious_epochs,
+                )
+
+            with col4:
+                st.metric(
+                    "Suspicious Fraction",
+                    f"{suspicious_fraction * 100:.1f}%",
+                )
+
+            # ===============================================================
+            # ATTACK PROFILE
+            # ===============================================================
+
+            st.markdown("#### Threat Attribution")
+
+            col1, col2, col3, col4 = st.columns(4)
+
+            with col1:
+                st.metric(
+                    "Attack Scenario",
+                    attack_type,
+                )
+
+            with col2:
+                if attack_start is not None:
+                    st.metric(
+                        "Attack Start",
+                        f"{attack_start / 3600:.2f} h",
+                    )
+                else:
+                    st.metric(
+                        "Attack Start",
+                        "—",
+                    )
+
+            with col3:
+                if attack_end is not None:
+                    st.metric(
+                        "Attack End",
+                        f"{attack_end / 3600:.2f} h",
+                    )
+                else:
+                    st.metric(
+                        "Attack End",
+                        "—",
+                    )
+
+            with col4:
+                if attack_duration is not None:
+                    st.metric(
+                        "Attack Duration",
+                        f"{attack_duration / 3600:.2f} h",
+                    )
+                else:
+                    st.metric(
+                        "Attack Duration",
+                        "—",
+                    )
+
+            # ===============================================================
+            # TEMPORAL SPOOF PROBABILITY
+            # ===============================================================
+
+            st.markdown("---")
+            st.markdown("#### Satellite Threat Timeline")
+
+            if not selected_history.empty:
+
+                history = selected_history.copy()
+
+                history["t_hours"] = history["t"] / 3600
+
+                history_prob = (
+                    history["fusion_spoof_prob"]
+                    .fillna(0)
+                    .astype(float)
+                )
+
+                satellite_fig = go.Figure()
+
+                satellite_fig.add_trace(
+                    go.Scatter(
+                        x=history["t_hours"],
+                        y=history_prob,
+                        mode="lines+markers",
+                        name=selected_satellite_id,
+                        line=dict(
+                            color=signal_color,
+                            width=2.5,
+                        ),
+                        marker=dict(
+                            size=5,
+                            color=signal_color,
+                        ),
+                        hovertemplate=(
+                            "<b>"
+                            + selected_satellite_id
+                            + "</b><br>"
+                            "Time: %{x:.2f} h<br>"
+                            "Fusion spoof probability: %{y:.3f}"
+                            "<extra></extra>"
+                        ),
+                    )
+                )
+
+                # Current timeline position
+                satellite_fig.add_vline(
+                    x=t_hours,
+                    line_width=2,
+                    line_dash="dash",
+                    line_color=CYAN,
+                    annotation_text=f"SELECTED  {t_hours:.2f} h",
+                    annotation_position="top",
+                    annotation_font_color=CYAN,
+                )
+
+                # Detection threshold
+                satellite_fig.add_hline(
+                    y=0.50,
+                    line_dash="dot",
+                    line_color=TEXT_MUTED,
+                    opacity=0.7,
+                    annotation_text="spoof threshold",
+                    annotation_position="right",
+                )
+
+                # Attack window
+                if attack_start is not None:
+
+                    satellite_fig.add_vrect(
+                        x0=attack_start / 3600,
+                        x1=attack_end / 3600,
+                        fillcolor=ATTACK_COLORS.get(
+                            attack_type.lower(),
+                            TEXT_MUTED,
+                        ),
+                        opacity=0.10,
+                        line_width=0,
+                    )
+
+                satellite_fig.update_layout(
+                    **PLOTLY_LAYOUT,
+                    height=380,
+                    xaxis_title="Time (hours)",
+                    yaxis_title="Fusion spoof probability",
+                    yaxis_range=[-0.05, 1.05],
+                    title=(
+                        f"{selected_satellite_id} — "
+                        "Temporal Threat Profile"
+                    ),
+                    showlegend=False,
+                )
+
+                st.plotly_chart(
+                    satellite_fig,
+                    width="stretch",
+                    key="selected_satellite_threat_timeline",
+                )
+
+            # ===============================================================
+            # SATELLITE RECORD
+            # ===============================================================
+
+            # ===============================================================
+            # DETECTION EVIDENCE
+            # ===============================================================
+
+            st.markdown("#### Detection Evidence")
+
+            # Status description
+            if signal_status == "CRITICAL":
+                evidence_summary = (
+                    "Strong evidence of signal compromise. "
+                    "The satellite should be excluded from trusted positioning "
+                    "while the anomaly remains active."
+                )
+            elif signal_status == "SUSPECTED":
+                evidence_summary = (
+                    "Elevated spoofing evidence detected. "
+                    "Satellite measurements require continued integrity monitoring."
+                )
+            elif signal_status == "ELEVATED":
+                evidence_summary = (
+                    "Anomalous behavior is present but has not reached "
+                    "the critical confidence level."
+                )
+            else:
+                evidence_summary = (
+                    "No significant spoofing evidence is currently detected."
+                )
+
+            st.markdown(
+                f"""
+                <div class="threat-panel" style="margin-top:12px;">
+                    <div class="section-kicker">
+                        DETECTION EVIDENCE
                     </div>
-                    <div class="assessment-text">
-                        {event_time_s:.0f} seconds
-                        ({event_time_h:.2f} hours)
+                    <div class="evidence-grid">
+                        <div class="evidence-item">
+                            <div class="evidence-label">
+                                CURRENT PROBABILITY
+                            </div>
+                            <div class="evidence-value">
+                                {current_spoof:.3f}
+                            </div>
+                            <div class="evidence-sub">
+                                Fusion detector
+                            </div>
+                        </div>
+                        <div class="evidence-item">
+                            <div class="evidence-label">
+                                PEAK PROBABILITY
+                            </div>
+                            <div class="evidence-value">
+                                {max_spoof:.3f}
+                            </div>
+                            <div class="evidence-sub">
+                                Historical maximum
+                            </div>
+                        </div>
+                        <div class="evidence-item">
+                            <div class="evidence-label">
+                                TEMPORAL PERSISTENCE
+                            </div>
+                            <div class="evidence-value">
+                                {suspicious_fraction * 100:.1f}%
+                            </div>
+                            <div class="evidence-sub">
+                                {suspicious_epochs} suspicious epochs
+                            </div>
+                        </div>
+                        <div class="evidence-item">
+                            <div class="evidence-label">
+                                THREAT CLASS
+                            </div>
+                            <div
+                                class="evidence-value"
+                                style="color:{signal_color};"
+                            >
+                                {attack_type}
+                            </div>
+                            <div class="evidence-sub">
+                                Attack attribution
+                            </div>
+                        </div>
+                    </div>
+                    <div class="evidence-divider"></div>
+                    <div class="evidence-grid">
+                        <div class="evidence-item">
+                            <div class="evidence-label">
+                                AZIMUTH
+                            </div>
+                            <div class="evidence-value">
+                                {azimuth:.2f}°
+                            </div>
+                            <div class="evidence-sub">
+                                Signal geometry
+                            </div>
+                        </div>
+                        <div class="evidence-item">
+                            <div class="evidence-label">
+                                ELEVATION
+                            </div>
+                            <div class="evidence-value">
+                                {elevation:.2f}°
+                            </div>
+                            <div class="evidence-sub">
+                                Signal geometry
+                            </div>
+                        </div>
+                        <div class="evidence-item">
+                            <div class="evidence-label">
+                                MEAN PROBABILITY
+                            </div>
+                            <div class="evidence-value">
+                                {mean_spoof:.3f}
+                            </div>
+                            <div class="evidence-sub">
+                                Full observation history
+                            </div>
+                        </div>
+                        <div class="evidence-item">
+                            <div class="evidence-label">
+                                INTEGRITY STATE
+                            </div>
+                            <div
+                                class="evidence-value"
+                                style="color:{signal_color};"
+                            >
+                                {signal_status}
+                            </div>
+                            <div class="evidence-sub">
+                                Current assessment
+                            </div>
+                        </div>
+                    </div>
+                    <div class="assessment-box" style="margin-top:18px;">
+                        <div class="assessment-label">
+                            EVIDENCE SUMMARY
+                        </div>
+                        <div class="assessment-text">
+                            {evidence_summary}
+                        </div>
                     </div>
                 </div>
-                <div class="assessment-box">
+                """,
+                unsafe_allow_html=True,
+            )
+            # ===============================================================
+            # ANALYST ASSESSMENT
+            # ===============================================================
+
+            st.markdown(
+                f"""
+                <div class="assessment-box" style="margin-top:18px;">
                     <div class="assessment-label">
                         ANALYST ASSESSMENT
                     </div>
                     <div class="assessment-text">
-                        {event_assessment}
+                        <strong>{selected_satellite_id}</strong> is currently
+                        classified as
+                        <strong style="color:{signal_color};">
+                            {signal_status}
+                        </strong>
+                        with a fusion spoof probability of
+                        <strong>{current_spoof:.3f}</strong>.
+                        Historical analysis shows a peak spoof probability
+                        of <strong>{max_spoof:.3f}</strong> and
+                        <strong>{suspicious_epochs}</strong> suspicious
+                        epochs.
+                        The associated threat scenario is
+                        <strong>{attack_type}</strong>.
                     </div>
                 </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+                """,
+                unsafe_allow_html=True,
+            )
+
+    # -----------------------------------------------------------------------
+    # NAVIGATION INTEGRITY CONFIDENCE
+    # -----------------------------------------------------------------------
+
+    st.markdown("---")
+    st.subheader("Navigation Integrity Confidence")
+    st.caption(
+        "Navigation confidence reflects the current integrity assessment "
+        "used to determine when resilient positioning assistance is required."
+    )
+
+    fig2 = go.Figure()
+
+    fig2.add_trace(
+        go.Scatter(
+            x=epoch_df["t"] / 3600,
+            y=epoch_df["confidence"],
+            mode="lines+markers",
+            name="confidence",
+            line=dict(
+                color=ACCENT,
+                width=1.5,
+            ),
+            marker=dict(
+                size=4,
+                opacity=0.7,
+            ),
+            hovertemplate=(
+                "<b>Navigation Epoch</b><br>"
+                "Time: %{x:.2f} h<br>"
+                "Confidence: %{y:.3f}"
+                "<extra></extra>"
+            ),
         )
+    )
+
+    fig2.add_vline(
+        x=t_hours,
+        line_width=2,
+        line_dash="dash",
+        line_color=CYAN,
+        annotation_text=f"SELECTED  {t_hours:.2f} h",
+        annotation_position="top",
+        annotation_font_color=CYAN,
+    )
+
+    fig2.add_hline(
+        y=0.15,
+        line_dash="dash",
+        line_color=ACCENT_DANGER,
+        annotation_text="reject threshold",
+        annotation_font_color=ACCENT_DANGER,
+    )
+
+    for attack_type, (start, end) in attack_windows.items():
+
+        fig2.add_vrect(
+            x0=start / 3600,
+            x1=end / 3600,
+            fillcolor=ATTACK_COLORS.get(
+                attack_type,
+                TEXT_MUTED,
+            ),
+            opacity=0.08,
+            line_width=0,
+        )
+
+    fig2.update_layout(
+        **PLOTLY_LAYOUT,
+        height=300,
+        xaxis_title="time (hours)",
+        yaxis_title="confidence",
+    )
+
+    st.plotly_chart(
+        fig2,
+        width="stretch",
+        key="confidence_chart",
+    )
 
 # ---------------------------------------------------------------------------
 # TAB 3: Navigation view -- interactive scatter + error timeline
